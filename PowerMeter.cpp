@@ -5,9 +5,10 @@
 #define BASE 100
 #define SPI_CHAN 0		//mcp3004Setup (BASE, SPI_CHAN) ; 
 #define AN_CHAN_DAC 0
-#define BIAS 512		//Substract CC component (3.3VDC/2)
+#define BIAS 511		//Resta la componente CC añadida (3.3VDC/2)
+#define OFFSET 0.945    // No tendria que ser.
 #define VOLTS 220
-#define FACTOR  22.75	//Convesion 512 digital values to current
+#define FACTOR  22.75	//22.85	//23 //22.72 //23.25 //20.23
 
 using namespace std;
 
@@ -21,7 +22,8 @@ int value;
 float Irms;
 float Potencia;	
 char FileName[128];
-char FileNameDB[128];	
+char FileNameDB[128];
+char UpLoad[128];	
 timeval currtime;	
 wiringPiSetup();
 mcp3004Setup (BASE, SPI_CHAN) ; 
@@ -46,7 +48,8 @@ while(Mes){
 	while(Dia){
 		while(Hora){
 			while(Minuto){
-				Irms = current()/FACTOR;
+				Irms = corriente();
+				Irms = (Irms-OFFSET)/FACTOR;
 				Potencia = Irms*VOLTS;
 				PotenciaMediaMinuto = Potencia+PotenciaMediaMinuto;
 				M++;
@@ -81,10 +84,13 @@ while(Mes){
 		LOG<<logTime()<<"Lazo de dias : "<<TimeString<<" hora"<<endl;
 		if(strcmp(TimeString,"00")==0){
 				Dia = 0;
-				logger.close();
 				DB.close();
-				// ToDo Send FileNameDB & FileName to dropBox.
-				// ToDo Delete FileNameDB & FileName.
+				strcpy(UpLoad,"dropbox_uploader -f /home/pi/.dropbox_uploader upload ");
+				strcat(UpLoad,FileNameDB);
+				strcat(UpLoad," \"PowerMonitoring/\"");
+				system(UpLoad);	
+				LOG<<logTime()<<"Realizado : "<<UpLoad<<endl;
+				logger.close();
 			}
 		Hora = 1;		
 		}
@@ -97,10 +103,10 @@ return 0;
 /*
 ***************************************************************************
 */
-float current(void)
+float corriente(void)
 {
   float voltajeSensor;
-  float current=0;
+  float corriente=0;
   float Sumatoria=0;
   long  tiempo=millis();
   long  start_aqu, end_aqu;
